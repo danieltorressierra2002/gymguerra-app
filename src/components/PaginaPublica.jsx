@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../lib/supabase"
 
-const LOGO_URL = "/icons/icon-512x512.png"
+const LOGO_URL = import.meta.env.BASE_URL + "icons/icon-512x512.png"
 
 function categoriaEmoji(categoria) {
   const map = { "Suplementos": "💊", "Medicamentos": "💉", "Equipamiento": "🥊", "Ropa y accesorios": "🧤", "Otros": "📦" }
