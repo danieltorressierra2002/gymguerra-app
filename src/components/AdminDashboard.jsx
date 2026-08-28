@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react"
 import { supabase } from "../lib/supabase"
 import { calcularEstadoMembresia, hoyISO } from "../lib/membership"
