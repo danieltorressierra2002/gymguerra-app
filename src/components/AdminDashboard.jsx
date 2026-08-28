@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react"
 import { supabase } from "../lib/supabase"
 import { calcularEstadoMembresia, hoyISO } from "../lib/membership"
@@ -11,7 +12,9 @@ import HistorialPagos from "./HistorialPagos"
 export default function AdminDashboard() {
   const { perfil, cerrarSesion } = useAuth()
   const [usuarios, setUsuarios] = useState([])
-  const [cargando, setCargando] = useState(true)
+  const [cargando, setCargando] = 
+
+useState(true)
   const [busqueda, setBusqueda] = useState("")
   const [filtro, setFiltro] = useState("todos")
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -20,12 +23,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     cargarUsuarios()
-    // Suscripción en tiempo real
     const subscription = supabase
       .channel('usuarios')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, cargarUsuarios)
       .subscribe()
     return () => supabase.removeChannel(subscription)
+
   }, [])
 
   async function cargarUsuarios() {
@@ -41,6 +44,7 @@ export default function AdminDashboard() {
   }, [usuarios])
 
   const usuariosFiltrados = useMemo(() => {
+
     return usuarios.filter(u => {
       const coincide = u.nombre?.toLowerCase().includes(busqueda.toLowerCase())
       if (!coincide) return false
@@ -55,10 +59,9 @@ export default function AdminDashboard() {
       const fechaAnterior = usuarioSeleccionado.fecha_inicio_pago
       await supabase.from("usuarios").update(resto).eq("id", usuarioSeleccionado.id)
 
-      // Actualizar perfil si cambió el rol
+
       await supabase.from("perfiles").update({ rol: datos.rol, nombre: datos.nombre }).eq("id", usuarioSeleccionado.id)
 
-      // Registrar en historial si cambió la fecha
       if (datos.fecha_inicio_pago && datos.fecha_inicio_pago !== fechaAnterior) {
         await supabase.from("historial_pagos").insert({
           usuario_id: usuarioSeleccionado.id,
@@ -68,47 +71,11 @@ export default function AdminDashboard() {
           fecha_vencimiento: datos.fecha_vencimiento,
           metodo_pago: datos.metodo_pago || "directo",
         })
+
       }
     } else {
-      // Crear usuario en Supabase Auth
-      const { data: authData, error } = await supabase.auth.admin.createUser({
-        email: datos.email.trim(),
-        password: datos.password,
-        email_confirm: true,
-      })
-
-      // Si admin.createUser no funciona, usar signUp
-      if (error) {
-        const res = await fetch(`https://avhahgquikdpobdjjtlw.supabase.co/auth/v1/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': 'sb_publishable_phEu8tinedpzf8egkGtrNg_TmxsbEvs' },
-          body: JSON.stringify({ email: datos.email.trim(), password: datos.password })
-        })
-        const resData = await res.json()
-        if (!res.ok) throw new Error(resData.msg || "Error al crear usuario")
-
-        const uid = resData.user?.id
-        if (!uid) throw new Error("No se pudo obtener el ID del usuario")
-
-        const { password, ...datosUsuario } = datos
-        await supabase.from("usuarios").insert({ ...datosUsuario, id: uid })
-        await supabase.from("perfiles").insert({ id: uid, rol: datos.rol || "usuario", nombre: datos.nombre, email: datos.email.trim() })
-        await supabase.from("historial_pagos").insert({
-          usuario_id: uid, nombre_usuario: datos.nombre, fecha_pago: hoyISO(),
-          fecha_inicio_pago: datos.fecha_inicio_pago, fecha_vencimiento: datos.fecha_vencimiento,
-          metodo_pago: datos.metodo_pago || "directo",
-        })
-      } else {
-        const uid = authData.user.id
-        const { password, ...datosUsuario } = datos
-        await supabase.from("usuarios").insert({ ...datosUsuario, id: uid })
-        await supabase.from("perfiles").insert({ id: uid, rol: datos.rol || "usuario", nombre: datos.nombre, email: datos.email.trim() })
-        await supabase.from("historial_pagos").insert({
-          usuario_id: uid, nombre_usuario: datos.nombre, fecha_pago: hoyISO(),
-          fecha_inicio_pago: datos.fecha_inicio_pago, fecha_vencimiento: datos.fecha_vencimiento,
-          metodo_pago: datos.metodo_pago || "directo",
-        })
-      }
+      const { error } = await supabase.functions.invoke('crear-usuario', { body: datos })
+      if (error) throw new Error(error.message || 'Error al crear usuario')
     }
     setModalAbierto(false)
     cargarUsuarios()
@@ -119,6 +86,7 @@ export default function AdminDashboard() {
     await supabase.from("usuarios").delete().eq("id", usuario.id)
     setModalAbierto(false)
     cargarUsuarios()
+
   }
 
   return (
@@ -129,13 +97,17 @@ export default function AdminDashboard() {
             <h1 className="font-display text-xl text-bone uppercase tracking-wide">GYM <span className="text-forge-glow">GUERRA</span></h1>
             <p className="text-xs text-bone-dim">Hola, {perfil?.nombre || "Admin"}</p>
           </div>
-          <button onClick={cerrarSesion} className="text-sm text-bone-dim hover:text-blood-glow font-medium px-3 py-1.5 rounded-lg border border-steel/40 hover:border-blood/40 transition-colors">Salir</button>
+          <button onClick={cerrarSesion} className="text-sm text-bone-dim 
+
+hover:text-blood-glow font-medium px-3 py-1.5 rounded-lg border border-steel/40 hover:border-blood/40 transition-colors">Salir</button>
         </div>
         <div className="max-w-3xl mx-auto px-4 flex border-t border-steel/20 overflow-x-auto">
           <NavTab activo={seccion === "miembros"} onClick={() => setSeccion("miembros")}>👥 Miembros</NavTab>
           <NavTab activo={seccion === "historial"} onClick={() => setSeccion("historial")}>📊 Historial</NavTab>
           <NavTab activo={seccion === "tienda"} onClick={() => setSeccion("tienda")}>🛒 Tienda</NavTab>
-          <NavTab activo={seccion === "ofertas"} onClick={() => setSeccion("ofertas")}>⚡ Ofertas</NavTab>
+          <NavTab activo={seccion === "ofertas"} onClick={() => 
+
+setSeccion("ofertas")}>⚡ Ofertas</NavTab>
         </div>
       </header>
 
@@ -148,13 +120,16 @@ export default function AdminDashboard() {
               <StatCard label="Vencidos" valor={conteos.vencido} tono="rojo" />
             </div>
             <div className="space-y-3">
-              <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." className="campo-input" />
+              <input value={busqueda} 
+
+onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." className="campo-input" />
               <div className="flex gap-2 overflow-x-auto pb-1">
                 <FiltroChip activo={filtro === "todos"} onClick={() => setFiltro("todos")}>Todos ({usuarios.length})</FiltroChip>
                 <FiltroChip activo={filtro === "activo"} onClick={() => setFiltro("activo")} tono="verde">Al día</FiltroChip>
                 <FiltroChip activo={filtro === "porVencer"} onClick={() => setFiltro("porVencer")} tono="amarillo">Por vencer</FiltroChip>
                 <FiltroChip activo={filtro === "vencido"} onClick={() => setFiltro("vencido")} tono="rojo">Vencidos</FiltroChip>
               </div>
+
             </div>
             {cargando ? (
               <p className="text-center text-bone-dim py-10">Cargando miembros...</p>
@@ -166,6 +141,7 @@ export default function AdminDashboard() {
               <div className="space-y-2.5">
                 {usuariosFiltrados.map(u => (
                   <UserCard key={u.id} usuario={u} onClick={() => { setUsuarioSeleccionado(u); setModalAbierto(true) }} />
+
                 ))}
               </div>
             )}
@@ -177,6 +153,7 @@ export default function AdminDashboard() {
             </button>
           </>
         )}
+
         {seccion === "historial" && <HistorialPagos />}
         {seccion === "tienda" && <Tienda esAdmin={true} />}
         {seccion === "ofertas" && <OfertasFlash esAdmin={true} />}
@@ -192,6 +169,7 @@ export default function AdminDashboard() {
       )}
     </div>
   )
+
 }
 
 function NavTab({ activo, onClick, children }) {
@@ -204,6 +182,7 @@ function NavTab({ activo, onClick, children }) {
 
 function StatCard({ label, valor, tono }) {
   const tonos = { verde: "text-emerald-400 border-emerald-500/30", amarillo: "text-amberwarn-glow border-amber-500/30", rojo: "text-blood-glow border-blood/30" }
+
   return (
     <div className={`bg-carbon-surface border rounded-xl p-3.5 text-center ${tonos[tono]}`}>
       <p className="font-display text-2xl">{valor}</p>
@@ -215,6 +194,7 @@ function StatCard({ label, valor, tono }) {
 function FiltroChip({ activo, onClick, children, tono }) {
   const tonoActivo = { verde: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400", amarillo: "bg-amber-500/15 border-amber-500/40 text-amberwarn-glow", rojo: "bg-blood/15 border-blood/40 text-blood-glow" }
   return (
+
     <button onClick={onClick} className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-colors ${activo ? tono ? tonoActivo[tono] : "bg-forge/15 border-forge/40 text-forge-glow" : "bg-carbon-raised border-steel/40 text-bone-dim hover:border-steel-light"}`}>
       {children}
     </button>
