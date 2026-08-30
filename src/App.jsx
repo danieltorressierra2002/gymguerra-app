@@ -8,7 +8,7 @@ import { useState } from "react"
 import { useLicencia } from "./hooks/useLicencia"
 
 function AppContent() {
-  const { user, perfil, cargando, esAdmin, esUsuario } = useAuth()
+  const { user, perfil, cargando, esAdmin, esUsuario, cerrarSesion } = useAuth()
   const [mostrarLogin, setMostrarLogin] = useState(false)
   const licencia = useLicencia(esAdmin)
 
@@ -25,12 +25,17 @@ function AppContent() {
     if (mostrarLogin) return <Login onVolver={() => setMostrarLogin(false)} />
     return <PaginaPublica onLogin={() => setMostrarLogin(true)} />
   }
-
   if (!perfil) {
     return (
       <div className="min-h-screen bg-carbon flex items-center justify-center px-4 text-center">
-
-        <p className="text-bone-dim">Tu cuenta no tiene perfil asignado. Contacta al administrador.</p>
+        <div className="space-y-4">
+      <p className="text-bone-dim">Tu cuenta no tiene perfil asignado. Contacta al administrador.</p>
+          <button
+            onClick={cerrarSesion}
+            className="text-sm text-bone-dim hover:text-blood-glow font-medium px-4 py-2 rounded-lg border border-steel/40 hover:border-blood/40 transition-colors">
+            Cerrar sesión
+          </button>
+          </div>
       </div>
     )
   }
