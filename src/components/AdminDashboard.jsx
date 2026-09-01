@@ -72,14 +72,14 @@ useState(true)
         })
 
       }
-    } else {
-      const { error } = await supabase.functions.invoke('crear-usuario', { body: datos })
-      if (error) throw new Error(error.message || 'Error al crear usuario')
-    }
-    setModalAbierto(false)
-    cargarUsuarios()
-  }
-
+    
+} else {
+  const emailFinal = datos.email.includes('@')
+    ? datos.email.trim()
+    : `${datos.email.trim().toLowerCase().replace(/\s+/g, '')}@gymguerra.art`
+  const { error } = await supabase.functions.invoke('crear-usuario', { body: { ...datos, email: emailFinal } })
+  if (error) throw new Error(error.message || 'Error al crear usuario')
+}
   async function eliminarUsuario(usuario) {
     if (!confirm(`¿Eliminar a ${usuario.nombre}?`)) return
     await supabase.from("usuarios").delete().eq("id", usuario.id)
