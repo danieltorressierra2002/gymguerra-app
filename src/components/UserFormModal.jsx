@@ -98,7 +98,7 @@ export default function UserFormModal({ usuarioExistente, onClose, onSave, onDel
             <input value={form.telefono} onChange={(e) => actualizar("telefono", e.target.value)} className="campo-input" placeholder="Ej. 300-1234567" />
           </Campo>
 
-          {form.rol === "usuario" && (
+          {(
             <>
               <Campo label="Fecha de inicio del mes pagado">
                 <input type="date" required value={form.fecha_inicio_pago} onChange={(e) => manejarCambioFechaInicio(e.target.value)} className="campo-input" />
@@ -118,14 +118,6 @@ export default function UserFormModal({ usuarioExistente, onClose, onSave, onDel
               </Campo>
             </>
           )}
-
-          <Campo label="Rol">
-            <div className="grid grid-cols-2 gap-2">
-              <BotonToggle activo={form.rol === "usuario"} onClick={() => actualizar("rol", "usuario")}>👤 Usuario</BotonToggle>
-              <BotonToggle activo={form.rol === "admin"} onClick={() => actualizar("rol", "admin")}>⚙️ Administrador</BotonToggle>
-            </div>
-          </Campo>
-
           {!esEdicion && (
             <div className="border-t border-steel/30 pt-4 space-y-4">
               <p className="text-xs font-medium text-forge-glow uppercase tracking-wide">Acceso del usuario</p>
