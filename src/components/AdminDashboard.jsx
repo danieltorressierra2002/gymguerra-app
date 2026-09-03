@@ -4,6 +4,7 @@ import { calcularEstadoMembresia, hoyISO } from "../lib/membership"
 import { useAuth } from "../contexts/AuthContext"
 import UserCard from "./UserCard"
 import UserFormModal from "./UserFormModal"
+import AdminFormModal from "./AdminFormModal"
 import Tienda from "./Tienda"
 import OfertasFlash from "./OfertasFlash"
 import HistorialPagos from "./HistorialPagos"
@@ -11,29 +12,34 @@ import HistorialPagos from "./HistorialPagos"
 export default function AdminDashboard() {
   const { perfil, cerrarSesion } = useAuth()
   const [usuarios, setUsuarios] = useState([])
-  const [cargando, setCargando] = 
-
-useState(true)
+  const [admins, setAdmins] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState("")
   const [filtro, setFiltro] = useState("todos")
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [modalAdminAbierto, setModalAdminAbierto] = useState(false)
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
   const [seccion, setSeccion] = useState("miembros")
 
   useEffect(() => {
     cargarUsuarios()
+    cargarAdmins()
     const subscription = supabase
       .channel('usuarios')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, cargarUsuarios)
       .subscribe()
     return () => supabase.removeChannel(subscription)
-
   }, [])
 
   async function cargarUsuarios() {
     const { data } = await supabase.from("usuarios").select("*").order("nombre")
     setUsuarios(data || [])
     setCargando(false)
+  }
+
+  async function cargarAdmins() {
+    const { data } = await supabase.from("perfiles").select("*").eq("rol", "admin").order("nombre")
+    setAdmins(data || [])
   }
 
   const conteos = useMemo(() => {
@@ -43,7 +49,6 @@ useState(true)
   }, [usuarios])
 
   const usuariosFiltrados = useMemo(() => {
-
     return usuarios.filter(u => {
       const coincide = u.nombre?.toLowerCase().includes(busqueda.toLowerCase())
       if (!coincide) return false
@@ -58,7 +63,6 @@ useState(true)
       const fechaAnterior = usuarioSeleccionado.fecha_inicio_pago
       await supabase.from("usuarios").update(resto).eq("id", usuarioSeleccionado.id)
 
-
       await supabase.from("perfiles").update({ rol: datos.rol, nombre: datos.nombre }).eq("id", usuarioSeleccionado.id)
 
       if (datos.fecha_inicio_pago && datos.fecha_inicio_pago !== fechaAnterior) {
@@ -70,22 +74,39 @@ useState(true)
           fecha_vencimiento: datos.fecha_vencimiento,
           metodo_pago: datos.metodo_pago || "directo",
         })
-
       }
-    
-} else {
-  const emailFinal = datos.email.includes('@')
-    ? datos.email.trim()
-    : `${datos.email.trim().toLowerCase().replace(/\s+/g, '')}@gymguerra.art`
-  const { error } = await supabase.functions.invoke('crear-usuario', { body: { ...datos, email: emailFinal } })
-  if (error) throw new Error(error.message || 'Error al crear usuario')
-}
+    } else {
+      const emailFinal = datos.email.includes('@')
+        ? datos.email.trim()
+        : `${datos.email.trim().toLowerCase().replace(/\s+/g, '')}@gymguerra.art`
+      const { error } = await supabase.functions.invoke('crear-usuario', { body: { ...datos, email: emailFinal, rol: "usuario" } })
+      if (error) throw new Error(error.message || 'Error al crear usuario')
+    }
+    setModalAbierto(false)
+    cargarUsuarios()
+  }
+
+  async function guardarAdmin(datos) {
+    const emailFinal = datos.email.includes('@')
+      ? datos.email.trim()
+      : `${datos.email.trim().toLowerCase().replace(/\s+/g, '')}@gymguerra.art`
+    const { error } = await supabase.functions.invoke('crear-usuario', { body: { ...datos, email: emailFinal } })
+    if (error) throw new Error(error.message || 'Error al crear administrador')
+    setModalAdminAbierto(false)
+    cargarAdmins()
+  }
+
+  async function eliminarAdmin(admin) {
+    if (!confirm(`¿Eliminar al administrador ${admin.nombre}?`)) return
+    await supabase.from("perfiles").delete().eq("id", admin.id)
+    cargarAdmins()
+  }
+
   async function eliminarUsuario(usuario) {
     if (!confirm(`¿Eliminar a ${usuario.nombre}?`)) return
     await supabase.from("usuarios").delete().eq("id", usuario.id)
     setModalAbierto(false)
     cargarUsuarios()
-
   }
 
   return (
@@ -96,17 +117,14 @@ useState(true)
             <h1 className="font-display text-xl text-bone uppercase tracking-wide">GYM <span className="text-forge-glow">GUERRA</span></h1>
             <p className="text-xs text-bone-dim">Hola, {perfil?.nombre || "Admin"}</p>
           </div>
-          <button onClick={cerrarSesion} className="text-sm text-bone-dim 
-
-hover:text-blood-glow font-medium px-3 py-1.5 rounded-lg border border-steel/40 hover:border-blood/40 transition-colors">Salir</button>
+          <button onClick={cerrarSesion} className="text-sm text-bone-dim hover:text-blood-glow font-medium px-3 py-1.5 rounded-lg border border-steel/40 hover:border-blood/40 transition-colors">Salir</button>
         </div>
         <div className="max-w-3xl mx-auto px-4 flex border-t border-steel/20 overflow-x-auto">
           <NavTab activo={seccion === "miembros"} onClick={() => setSeccion("miembros")}>👥 Miembros</NavTab>
           <NavTab activo={seccion === "historial"} onClick={() => setSeccion("historial")}>📊 Historial</NavTab>
           <NavTab activo={seccion === "tienda"} onClick={() => setSeccion("tienda")}>🛒 Tienda</NavTab>
-          <NavTab activo={seccion === "ofertas"} onClick={() => 
-
-setSeccion("ofertas")}>⚡ Ofertas</NavTab>
+          <NavTab activo={seccion === "ofertas"} onClick={() => setSeccion("ofertas")}>⚡ Ofertas</NavTab>
+          <NavTab activo={seccion === "admins"} onClick={() => setSeccion("admins")}>🛡️ Admins</NavTab>
         </div>
       </header>
 
@@ -119,16 +137,13 @@ setSeccion("ofertas")}>⚡ Ofertas</NavTab>
               <StatCard label="Vencidos" valor={conteos.vencido} tono="rojo" />
             </div>
             <div className="space-y-3">
-              <input value={busqueda} 
-
-onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." className="campo-input" />
+              <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." className="campo-input" />
               <div className="flex gap-2 overflow-x-auto pb-1">
                 <FiltroChip activo={filtro === "todos"} onClick={() => setFiltro("todos")}>Todos ({usuarios.length})</FiltroChip>
                 <FiltroChip activo={filtro === "activo"} onClick={() => setFiltro("activo")} tono="verde">Al día</FiltroChip>
                 <FiltroChip activo={filtro === "porVencer"} onClick={() => setFiltro("porVencer")} tono="amarillo">Por vencer</FiltroChip>
                 <FiltroChip activo={filtro === "vencido"} onClick={() => setFiltro("vencido")} tono="rojo">Vencidos</FiltroChip>
               </div>
-
             </div>
             {cargando ? (
               <p className="text-center text-bone-dim py-10">Cargando miembros...</p>
@@ -140,11 +155,39 @@ onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." cl
               <div className="space-y-2.5">
                 {usuariosFiltrados.map(u => (
                   <UserCard key={u.id} usuario={u} onClick={() => { setUsuarioSeleccionado(u); setModalAbierto(true) }} />
-
                 ))}
               </div>
             )}
             <button onClick={() => { setUsuarioSeleccionado(null); setModalAbierto(true) }}
+              className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-forge hover:bg-forge-glow text-carbon shadow-glow-gold flex items-center justify-center transition-transform active:scale-90 z-30">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </>
+        )}
+
+        {seccion === "admins" && (
+          <>
+            <p className="text-sm text-bone-dim">Total: {admins.length} administrador{admins.length !== 1 ? "es" : ""}</p>
+            {admins.length === 0 ? (
+              <div className="text-center py-14 border border-dashed border-steel/40 rounded-xl">
+                <p className="text-bone-dim">Aún no hay administradores registrados.</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {admins.map(a => (
+                  <div key={a.id} className="bg-carbon-surface border border-steel/40 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-bone font-medium">{a.nombre}</p>
+                      <p className="text-xs text-bone-dim">{a.email}</p>
+                    </div>
+                    <button onClick={() => eliminarAdmin(a)} className="text-sm text-blood-glow border border-blood/40 hover:bg-blood/10 px-3 py-1.5 rounded-lg transition-colors">Eliminar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setModalAdminAbierto(true)}
               className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-forge hover:bg-forge-glow text-carbon shadow-glow-gold flex items-center justify-center transition-transform active:scale-90 z-30">
               <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -166,9 +209,15 @@ onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar miembro..." cl
           onDelete={eliminarUsuario}
         />
       )}
+
+      {modalAdminAbierto && (
+        <AdminFormModal
+          onClose={() => setModalAdminAbierto(false)}
+          onSave={guardarAdmin}
+        />
+      )}
     </div>
   )
-
 }
 
 function NavTab({ activo, onClick, children }) {
@@ -181,7 +230,6 @@ function NavTab({ activo, onClick, children }) {
 
 function StatCard({ label, valor, tono }) {
   const tonos = { verde: "text-emerald-400 border-emerald-500/30", amarillo: "text-amberwarn-glow border-amber-500/30", rojo: "text-blood-glow border-blood/30" }
-
   return (
     <div className={`bg-carbon-surface border rounded-xl p-3.5 text-center ${tonos[tono]}`}>
       <p className="font-display text-2xl">{valor}</p>
@@ -193,7 +241,6 @@ function StatCard({ label, valor, tono }) {
 function FiltroChip({ activo, onClick, children, tono }) {
   const tonoActivo = { verde: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400", amarillo: "bg-amber-500/15 border-amber-500/40 text-amberwarn-glow", rojo: "bg-blood/15 border-blood/40 text-blood-glow" }
   return (
-
     <button onClick={onClick} className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap transition-colors ${activo ? tono ? tonoActivo[tono] : "bg-forge/15 border-forge/40 text-forge-glow" : "bg-carbon-raised border-steel/40 text-bone-dim hover:border-steel-light"}`}>
       {children}
     </button>
